@@ -1,5 +1,29 @@
-const MainPage = () => `
-  <div class="bg-gray-100 min-h-screen flex justify-center">
+//웹 스토리지
+class UserPreferences {
+  constructor(){
+    this.preferences = JSON.parse(localStorage.getItem('userPreferences'))||
+    {};
+  }
+  set(key, value) {
+    this.preferences[key] = value;
+    this.save();
+  }
+
+  get(key) {
+    return this.preferences[key];
+  }
+
+  save(){
+    localStorage.setItem('userPreferences',JSON.stringify(this.preferences))
+  }
+  clear() {
+    // 모든 데이터를 삭제
+    localStorage.removeItem('userPreferences');
+  }
+}
+const prefs = new UserPreferences();
+const Header = () => `
+  <div class="bg-gray-100 flex justify-center">
     <div class="max-w-md w-full">
       <header class="bg-blue-600 text-white p-4 sticky top-0">
         <h1 class="text-2xl font-bold">항해플러스</h1>
@@ -9,9 +33,20 @@ const MainPage = () => `
         <ul class="flex justify-around">
           <li><a href="/" class="text-blue-600">홈</a></li>
           <li><a href="/profile" class="text-gray-600">프로필</a></li>
-          <li><a href="#" class="text-gray-600">로그아웃</a></li>
+          <li><a href="/login" class="text-gray-600">로그인</a></li>
         </ul>
       </nav>
+    </div>
+  </div>
+`;
+const Footer = () => `
+      <footer class="bg-gray-200 p-4 text-center">
+        <p>&copy; 2024 항해플러스. All rights reserved.</p>
+      </footer>
+`;
+const HomePage = () => `
+  <div class="bg-gray-100 min-h-screen flex justify-center">
+    <div class="max-w-md w-full">
 
       <main class="p-4">
         <div class="mb-4 bg-white rounded-lg shadow p-4">
@@ -102,15 +137,10 @@ const MainPage = () => `
           </div>
         </div>
       </main>
-
-      <footer class="bg-gray-200 p-4 text-center">
-        <p>&copy; 2024 항해플러스. All rights reserved.</p>
-      </footer>
     </div>
   </div>
 `;
-
-const ErrorPage = () => `
+const NotFoundPage = () => `
   <main class="bg-gray-100 flex items-center justify-center min-h-screen">
     <div class="bg-white p-8 rounded-lg shadow-md w-full text-center" style="max-width: 480px">
       <h1 class="text-2xl font-bold text-blue-600 mb-4">항해플러스</h1>
@@ -125,19 +155,18 @@ const ErrorPage = () => `
     </div>
   </main>
 `;
-
 const LoginPage = () => `
   <main class="bg-gray-100 flex items-center justify-center min-h-screen">
     <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
       <h1 class="text-2xl font-bold text-center text-blue-600 mb-8">항해플러스</h1>
       <form>
         <div class="mb-4">
-          <input type="text" placeholder="이메일 또는 전화번호" class="w-full p-2 border rounded">
+          <input id="id" type="text" placeholder="이메일 또는 전화번호" class="w-full p-2 border rounded">
         </div>
         <div class="mb-6">
-          <input type="password" placeholder="비밀번호" class="w-full p-2 border rounded">
+          <input id="pwd" type="password" placeholder="비밀번호" class="w-full p-2 border rounded">
         </div>
-        <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded font-bold">로그인</button>
+        <button id="submit-btn" type="submit" class="w-full bg-blue-600 text-white p-2 rounded font-bold">로그인</button>
       </form>
       <div class="mt-4 text-center">
         <a href="#" class="text-blue-600 text-sm">비밀번호를 잊으셨나요?</a>
@@ -149,23 +178,10 @@ const LoginPage = () => `
     </div>
   </main>
 `;
-
 const ProfilePage = () => `
   <div id="root">
     <div class="bg-gray-100 min-h-screen flex justify-center">
       <div class="max-w-md w-full">
-        <header class="bg-blue-600 text-white p-4 sticky top-0">
-          <h1 class="text-2xl font-bold">항해플러스</h1>
-        </header>
-
-        <nav class="bg-white shadow-md p-2 sticky top-14">
-          <ul class="flex justify-around">
-            <li><a href="/" class="text-gray-600">홈</a></li>
-            <li><a href="/profile" class="text-blue-600">프로필</a></li>
-            <li><a href="#" class="text-gray-600">로그아웃</a></li>
-          </ul>
-        </nav>
-
         <main class="p-4">
           <div class="bg-white p-8 rounded-lg shadow-md">
             <h2 class="text-2xl font-bold text-center text-blue-600 mb-8">
@@ -224,18 +240,101 @@ const ProfilePage = () => `
             </form>
           </div>
         </main>
-
-        <footer class="bg-gray-200 p-4 text-center">
-          <p>&copy; 2024 항해플러스. All rights reserved.</p>
-        </footer>
       </div>
     </div>
   </div>
 `;
 
-document.body.innerHTML = `
-  ${MainPage()}
-  ${ProfilePage()}
-  ${LoginPage()}
-  ${ErrorPage()}
+
+
+//라우터
+class Router {
+  constructor() {
+    this.routes = {};
+    window.addEventListener('popstate', this.handlePopState.bind(this));
+  }
+
+  addRoute(path, handler) {
+    this.routes[path] = handler;
+  }
+
+  navigateTo(path) {
+    history.pushState(null, '', path);
+    this.handleRoute(path);
+  }
+
+  handlePopState() {
+    this.handleRoute(window.location.pathname);
+  }
+
+  handleRoute(path) {
+    const handler = this.routes[path];
+    if (handler) {
+      document.body.innerHTML = handler();
+      this.bindEvents(path); // 페이지 렌더링 후 이벤트 바인딩
+    } else {
+      document.body.innerHTML = NotFoundPage();
+    }
+  }
+
+  bindEvents(path) {
+    if (path === '/login') {
+      // 로그인 이벤트 바인딩
+      document.querySelector('#submit-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+
+        const id = document.querySelector('#id').value;
+        const pwd = document.querySelector('#pwd').value;
+
+        prefs.set('id', id);
+        prefs.set('pwd', pwd);
+
+        console.log('Stored ID:', prefs.get('id'));
+        console.log('Stored Password:', prefs.get('pwd'));
+
+        alert('로그인 성공');
+        this.navigateTo('/');
+      });
+    }
+
+  const logoutBtn = document.querySelector('#logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+    
+        // localStorage 데이터 삭제
+        prefs.clear();
+    
+        // 확인용 콘솔 출력
+        console.log('로그아웃되었습니다.');
+        alert('로그아웃되었습니다.');
+    
+        // 로그인 페이지로 이동
+        router.navigateTo('/login');
+      });
+    }
+  }
+}
+  document.body.innerHTML = `
+  ${Header()}
+  ${HomePage()}
+  ${Footer()}
 `;
+
+// Router 인스턴스 생성
+const router = new Router();
+// 라우터 경로 및 핸들러 등록
+router.addRoute('/', HomePage);
+router.addRoute('/login', LoginPage);
+router.addRoute('/profile', ProfilePage);
+router.addRoute('/error', NotFoundPage);
+/* router.navigateTo('/login'); // 초기 페이지를 로그인 페이지로 설정
+ */
+// 네비게이션 이벤트 설정
+document.querySelector('nav').addEventListener('click', (e) => {
+  if (e.target.tagName === 'A') {
+    e.preventDefault();
+    const path = e.target.getAttribute('href'); // 경로 가져오기
+    router.navigateTo(path);
+  }
+});
