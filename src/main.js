@@ -34,6 +34,7 @@ const Header = () => `
           <li><a href="/" class="text-blue-600">홈</a></li>
           <li><a href="/profile" class="text-gray-600">프로필</a></li>
           <li><a href="/login" class="text-gray-600">로그인</a></li>
+          <li><a href="/" id="logout-btn" class="text-gray-600">로그아웃</a></li>
         </ul>
       </nav>
     </div>
@@ -245,9 +246,16 @@ const ProfilePage = () => `
   </div>
 `;
 
+// 초기 렌더링 구조
+document.body.innerHTML = `
+  <div id="app">
+    <div id="header-container"></div>
+    <div id="content-container"></div>
+    <div id="footer-container"></div>
+  </div>
+`;
 
-
-//라우터
+// Router 클래스 수정
 class Router {
   constructor() {
     this.routes = {};
@@ -269,17 +277,33 @@ class Router {
 
   handleRoute(path) {
     const handler = this.routes[path];
+    const headerContainer = document.getElementById('header-container');
+    const contentContainer = document.getElementById('content-container');
+    const footerContainer = document.getElementById('footer-container');
+
     if (handler) {
-      document.body.innerHTML = handler();
+      // 로그인 페이지일 경우 Header와 Footer를 숨기고 LoginPage만 표시
+      if (path === '/login') {
+        headerContainer.innerHTML = ''; // Header 제거
+        footerContainer.innerHTML = ''; // Footer 제거
+        contentContainer.innerHTML = handler(); // LoginPage 표시
+      } else {
+        // 로그인 페이지가 아닐 경우 Header, Footer 포함
+        headerContainer.innerHTML = Header();
+        footerContainer.innerHTML = Footer();
+        contentContainer.innerHTML = handler(); // 해당 페이지 표시
+      }
       this.bindEvents(path); // 페이지 렌더링 후 이벤트 바인딩
     } else {
-      document.body.innerHTML = NotFoundPage();
+      // NotFoundPage 처리
+      headerContainer.innerHTML = Header();
+      footerContainer.innerHTML = Footer();
+      contentContainer.innerHTML = NotFoundPage();
     }
   }
 
   bindEvents(path) {
     if (path === '/login') {
-      // 로그인 이벤트 바인딩
       document.querySelector('#submit-btn').addEventListener('click', (e) => {
         e.preventDefault();
 
@@ -297,44 +321,41 @@ class Router {
       });
     }
 
-  const logoutBtn = document.querySelector('#logout-btn');
+    const logoutBtn = document.querySelector('#logout-btn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', (e) => {
         e.preventDefault();
-    
-        // localStorage 데이터 삭제
+
         prefs.clear();
-    
-        // 확인용 콘솔 출력
         console.log('로그아웃되었습니다.');
         alert('로그아웃되었습니다.');
-    
-        // 로그인 페이지로 이동
-        router.navigateTo('/login');
+        this.navigateTo('/login');
       });
     }
   }
 }
-  document.body.innerHTML = `
-  ${Header()}
-  ${HomePage()}
-  ${Footer()}
-`;
 
-// Router 인스턴스 생성
-const router = new Router();
-// 라우터 경로 및 핸들러 등록
-router.addRoute('/', HomePage);
-router.addRoute('/login', LoginPage);
-router.addRoute('/profile', ProfilePage);
-router.addRoute('/error', NotFoundPage);
-/* router.navigateTo('/login'); // 초기 페이지를 로그인 페이지로 설정
- */
-// 네비게이션 이벤트 설정
-document.querySelector('nav').addEventListener('click', (e) => {
-  if (e.target.tagName === 'A') {
-    e.preventDefault();
-    const path = e.target.getAttribute('href'); // 경로 가져오기
-    router.navigateTo(path);
-  }
+
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  const router = new Router();
+
+  // 라우터 경로 및 핸들러 등록
+  router.addRoute('/', HomePage);
+  router.addRoute('/login', LoginPage);
+  router.addRoute('/profile', ProfilePage);
+  router.addRoute('/error', NotFoundPage);
+
+  // 초기 페이지 렌더링
+  router.handleRoute(window.location.pathname);
+
+  // 네비게이션 이벤트 설정
+  document.querySelector('nav').addEventListener('click', (e) => {
+    if (e.target.tagName === 'A') {
+      e.preventDefault();
+      const path = e.target.getAttribute('href');
+      router.navigateTo(path);
+    }
+  });
 });
